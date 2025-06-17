@@ -1,8 +1,7 @@
 /* eslint-disable max-classes-per-file */
 import * as React from 'react';
 import { MutableRefObject, PureComponent, useCallback, useMemo, useRef, useState } from 'react';
-import Animate from 'react-smooth';
-import { omit } from 'es-toolkit';
+import omit from 'es-toolkit/compat/omit';
 
 import { clsx } from 'clsx';
 import { selectActiveIndex } from '../state/selectors/selectors';
@@ -38,6 +37,7 @@ import { ResolvedFunnelSettings, selectFunnelTrapezoids } from '../state/selecto
 import { filterProps, findAllByType } from '../util/ReactUtils';
 import { Cell } from '../component/Cell';
 import { resolveDefaultProps } from '../util/resolveDefaultProps';
+import { Animate } from '../animation/Animate';
 
 export interface FunnelTrapezoidItem extends TrapezoidProps {
   value?: number | string;

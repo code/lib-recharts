@@ -2,7 +2,7 @@
 import { expect, userEvent, within } from '@storybook/test';
 import { StoryContext, StoryObj } from '@storybook/react';
 import React, { PureComponent, useState } from 'react';
-import { Impressions, impressionsData, pageData } from '../data';
+import { Impressions, impressionsData, logData, pageData } from '../data';
 import {
   Line,
   LineChart,
@@ -20,6 +20,7 @@ import { DataKey } from '../../../src/util/types';
 import { RechartsHookInspector } from '../../storybook-addon-recharts/RechartsHookInspector';
 import { CategoricalChartProps } from '../API/props/ChartProps';
 import { getStoryArgsFromArgsTypesObject } from '../API/props/utils';
+import { ManualAnimations } from '../../storybook-addon-recharts/ManualAnimations';
 
 export default {
   component: LineChart,
@@ -111,6 +112,44 @@ export const Dashed = {
       top: 5,
       right: 30,
       left: 20,
+      bottom: 5,
+    },
+  },
+};
+
+export const LogarithmicYAxis = {
+  render: (args: Record<string, any>) => {
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart {...args}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="year" />
+          <YAxis
+            scale="symlog"
+            ticks={[0, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 10000000, 100000000, 1000000000, 10000000000]}
+          />
+          <Tooltip defaultIndex={1} />
+          <Line
+            type="monotone"
+            dataKey="performance"
+            name="Performance"
+            stroke="#75ABBC"
+            strokeWidth={3}
+            activeDot={{ r: 8 }}
+            unit=" KFLOPS"
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  },
+  args: {
+    width: 500,
+    height: 300,
+    data: logData,
+    margin: {
+      top: 20,
+      right: 30,
+      left: 50,
       bottom: 5,
     },
   },
@@ -1059,7 +1098,6 @@ export const ChangingDataKey = {
     const data2 = [
       { y: { value: 3 }, name: 'y1' },
       { y: { value: 2 }, name: 'y2' },
-      { y: { value: 1 }, name: 'y3' },
     ];
 
     const dataKey1 = (d: any) => {
@@ -1073,7 +1111,7 @@ export const ChangingDataKey = {
     const [visible, setVisible] = useState(true);
 
     return (
-      <>
+      <ManualAnimations isEnabled={context.rechartsInspectorEnabled}>
         <button
           type="button"
           onClick={() => {
@@ -1118,7 +1156,7 @@ export const ChangingDataKey = {
             label={{ fill: 'red', dy: -25 }}
           />
         </LineChart>
-      </>
+      </ManualAnimations>
     );
   },
   args: {

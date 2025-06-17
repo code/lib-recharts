@@ -482,7 +482,7 @@ describe('selectAxisDomain', () => {
       },
     ]);
     expect(domainSpy).toHaveBeenLastCalledWith([10, 20, 30, 40, 50, 60, 70, 80, 90]);
-    expect(domainSpy).toHaveBeenCalledTimes(3);
+    expect(domainSpy).toHaveBeenCalledTimes(2);
   });
 
   it('should return array indexes if there are multiple graphical items, and no explicit dataKey on the matching XAxis', () => {
@@ -547,7 +547,7 @@ describe('selectAxisDomain', () => {
       },
     ]);
     expect(domainSpy).toHaveBeenLastCalledWith([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(domainSpy).toHaveBeenCalledTimes(3);
+    expect(domainSpy).toHaveBeenCalledTimes(2);
   });
 
   describe('XAxis with type = number', () => {
@@ -2498,8 +2498,8 @@ describe('selectErrorBarsSettings', () => {
     // There are ErrorBars but they are specified for another XAxis
     expect(xAxisSpy).toHaveBeenLastCalledWith([]);
     expect(yAxisSpy).toHaveBeenLastCalledWith([]);
-    expect(xAxisSpy).toHaveBeenCalledTimes(2);
-    expect(yAxisSpy).toHaveBeenCalledTimes(2);
+    expect(xAxisSpy).toHaveBeenCalledTimes(3);
+    expect(yAxisSpy).toHaveBeenCalledTimes(3);
   });
 
   it('should return bars settings if present in BarChart', () => {

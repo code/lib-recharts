@@ -1,6 +1,6 @@
 import { createSelector } from 'reselect';
-// @ts-expect-error not installing types for lodash.get, I just want to see the bundle size difference
-import get from 'lodash.get';
+
+import get from 'es-toolkit/compat/get';
 import { selectLegendSettings, selectLegendSize } from './legendSelectors';
 import {
   CartesianViewBoxRequired,
@@ -15,6 +15,7 @@ import { LegendSettings } from '../legendSlice';
 import { appendOffsetOfLegend } from '../../util/ChartUtils';
 import { selectChartHeight, selectChartWidth, selectMargin } from './containerSelectors';
 import { selectAllXAxes, selectAllYAxes } from './selectAllAxes';
+import { DEFAULT_Y_AXIS_WIDTH } from '../../util/Constants';
 import { RechartsRootState } from '../store';
 
 export const selectBrushHeight = (state: RechartsRootState) => state.brush.height;
@@ -45,7 +46,8 @@ export const selectChartOffset: (state: RechartsRootState) => ChartOffsetRequire
         const { orientation } = entry;
 
         if (!entry.mirror && !entry.hide) {
-          return { ...result, [orientation]: result[orientation] + entry.width };
+          const width = typeof entry.width === 'number' ? entry.width : DEFAULT_Y_AXIS_WIDTH;
+          return { ...result, [orientation]: result[orientation] + width };
         }
 
         return result;

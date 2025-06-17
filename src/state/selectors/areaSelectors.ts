@@ -15,8 +15,9 @@ import { selectChartLayout } from '../../context/chartLayoutContext';
 import { selectChartDataWithIndexesIfNotInPanorama } from './dataSelectors';
 import { getBandSizeOfAxis, getNormalizedStackId, isCategoricalAxis, StackId } from '../../util/ChartUtils';
 import { ChartData } from '../chartDataSlice';
+import { NullablePoint } from '../../shape/Curve';
 
-export interface AreaPointItem {
+export interface AreaPointItem extends NullablePoint {
   x: number | null;
   y: number | null;
   value?: number | number[];

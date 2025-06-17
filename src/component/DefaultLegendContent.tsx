@@ -5,8 +5,7 @@ import * as React from 'react';
 import { PureComponent, ReactNode, MouseEvent, ReactElement } from 'react';
 
 import { clsx } from 'clsx';
-// @ts-expect-error not installing types for lodash.sortBy, I just want to see the bundle size difference
-import sortBy from 'lodash.sortby';
+import sortBy from 'es-toolkit/compat/sortBy';
 import { Surface } from '../container/Surface';
 import { Symbols } from '../shape/Symbols';
 import {
@@ -27,8 +26,9 @@ export type Formatter = (value: any, entry: LegendPayload, index: number) => Rea
 export interface LegendPayload {
   /**
    * This is the text that will be displayed in the legend in the DOM.
+   * If undefined, the text will not be displayed, so the icon will be rendered without text.
    */
-  value: string;
+  value: string | undefined;
   type?: LegendType;
   color?: string;
   payload?: {

@@ -2,21 +2,20 @@
 import * as React from 'react';
 import { MutableRefObject, PureComponent, useCallback, useMemo, useRef, useState } from 'react';
 import { clsx } from 'clsx';
-import Animate from 'react-smooth';
-import { Curve, CurveType, Point as CurvePoint, Props as CurveProps } from '../shape/Curve';
+import { Curve, CurveType, NullablePoint, Point as CurvePoint, Props as CurveProps } from '../shape/Curve';
 import { Dot } from '../shape/Dot';
 import { Layer } from '../container/Layer';
 import { LabelList } from '../component/LabelList';
 import { Global } from '../util/Global';
-import { interpolateNumber, isNan, isNullish, isNumber, uniqueId } from '../util/DataUtils';
+import { interpolate, isNan, isNullish, isNumber, uniqueId } from '../util/DataUtils';
 import { getCateCoordinateOfLine, getTooltipNameProp, getValueByDataKey, StackId } from '../util/ChartUtils';
 import {
   ActiveDotType,
   AnimationDuration,
   AnimationTiming,
-  Coordinate,
   DataKey,
   LegendType,
+  NullableCoordinate,
   TickItem,
   TooltipType,
 } from '../util/types';
@@ -37,6 +36,8 @@ import { SetLegendPayload } from '../state/SetLegendPayload';
 import { useAppSelector } from '../state/hooks';
 import { useAnimationId } from '../util/useAnimationId';
 import { resolveDefaultProps } from '../util/resolveDefaultProps';
+import { isWellBehavedNumber } from '../util/isWellBehavedNumber';
+import { Animate } from '../animation/Animate';
 
 export type BaseValue = number | 'dataMin' | 'dataMax';
 
@@ -48,7 +49,7 @@ interface InternalAreaProps {
   animationBegin: number;
   animationDuration: AnimationDuration;
   animationEasing: AnimationTiming;
-  baseLine?: number | Coordinate[];
+  baseLine: number | ReadonlyArray<NullableCoordinate> | undefined;
 
   baseValue?: BaseValue;
   className?: string;
@@ -68,11 +69,11 @@ interface InternalAreaProps {
 
   legendType: LegendType;
   name?: string | number;
-  needClip?: boolean;
+  needClip: boolean;
   onAnimationEnd?: () => void;
   onAnimationStart?: () => void;
 
-  points?: ReadonlyArray<AreaPointItem>;
+  points: ReadonlyArray<AreaPointItem>;
   stackId?: StackId;
 
   tooltipType?: TooltipType;
@@ -129,15 +130,7 @@ type InternalProps = AreaSvgProps & InternalAreaProps;
 
 export type Props = AreaSvgProps & AreaProps;
 
-interface State {
-  prevPoints?: ReadonlyArray<AreaPointItem>;
-  prevBaseLine?: number | Coordinate[];
-  curPoints?: ReadonlyArray<AreaPointItem>;
-  curBaseLine?: number | Coordinate[];
-  isAnimationFinished?: boolean;
-}
-
-function getLegendItemColor(stroke: string | undefined, fill: string): string {
+function getLegendItemColor(stroke: string | undefined, fill: string | undefined): string | undefined {
   return stroke && stroke !== 'none' ? stroke : fill;
 }
 
@@ -237,7 +230,7 @@ function Dots({
     return renderDotItem(dot, dotProps);
   });
   const dotsProps = {
-    clipPath: needClip ? `url(#clipPath-${clipDot ? '' : 'dots-'}${clipPathId})` : null,
+    clipPath: needClip ? `url(#clipPath-${clipDot ? '' : 'dots-'}${clipPathId})` : undefined,
   };
   return (
     <Layer className="recharts-area-dots" {...dotsProps}>
@@ -254,7 +247,7 @@ function StaticArea({
   props,
   showLabels,
 }: {
-  points: ReadonlyArray<AreaPointItem> | undefined;
+  points: ReadonlyArray<AreaPointItem>;
   baseLine: Props['baseLine'];
   needClip: boolean;
   clipPathId: string;
@@ -266,7 +259,7 @@ function StaticArea({
   return (
     <>
       {points?.length > 1 && (
-        <Layer clipPath={needClip ? `url(#clipPath-${clipPathId})` : null}>
+        <Layer clipPath={needClip ? `url(#clipPath-${clipPathId})` : undefined}>
           <Curve
             {...filterProps(others, true)}
             points={points}
@@ -320,6 +313,9 @@ function VerticalRect({
 }) {
   const startY = points[0].y;
   const endY = points[points.length - 1].y;
+  if (!isWellBehavedNumber(startY) || !isWellBehavedNumber(endY)) {
+    return null;
+  }
   const height = alpha * Math.abs(startY - endY);
   let maxX = Math.max(...points.map(entry => entry.x || 0));
 
@@ -356,6 +352,9 @@ function HorizontalRect({
 }) {
   const startX = points[0].x;
   const endX = points[points.length - 1].x;
+  if (!isWellBehavedNumber(startX) || !isWellBehavedNumber(endX)) {
+    return null;
+  }
   const width = alpha * Math.abs(startX - endX);
   let maxY = Math.max(...points.map(entry => entry.y || 0));
 
@@ -409,8 +408,8 @@ function AreaWithAnimation({
   needClip: boolean;
   clipPathId: string;
   props: InternalProps;
-  previousPointsRef: MutableRefObject<ReadonlyArray<AreaPointItem>>;
-  previousBaselineRef: MutableRefObject<InternalProps['baseLine']>;
+  previousPointsRef: MutableRefObject<ReadonlyArray<AreaPointItem> | null>;
+  previousBaselineRef: MutableRefObject<InternalProps['baseLine'] | null>;
 }) {
   const {
     points,
@@ -457,7 +456,7 @@ function AreaWithAnimation({
       {({ t }: { t: number }) => {
         if (prevPoints) {
           const prevPointsDiffFactor = prevPoints.length / points.length;
-          const stepPoints =
+          const stepPoints: ReadonlyArray<AreaPointItem> =
             /*
              * Here it is important that at the very end of the animation, on the last frame,
              * we render the original points without any interpolation.
@@ -467,35 +466,29 @@ function AreaWithAnimation({
              */
             t === 1
               ? points
-              : points.map((entry, index) => {
+              : points.map((entry, index): AreaPointItem => {
                   const prevPointIndex = Math.floor(index * prevPointsDiffFactor);
                   if (prevPoints[prevPointIndex]) {
-                    const prev = prevPoints[prevPointIndex];
-                    const interpolatorX = interpolateNumber(prev.x, entry.x);
-                    const interpolatorY = interpolateNumber(prev.y, entry.y);
+                    const prev: AreaPointItem = prevPoints[prevPointIndex];
 
-                    return { ...entry, x: interpolatorX(t), y: interpolatorY(t) };
+                    return { ...entry, x: interpolate(prev.x, entry.x, t), y: interpolate(prev.y, entry.y, t) };
                   }
 
                   return entry;
                 });
-          let stepBaseLine;
+          let stepBaseLine: number | ReadonlyArray<NullablePoint>;
 
           if (isNumber(baseLine)) {
-            const interpolator = interpolateNumber(prevBaseLine as number, baseLine);
-            stepBaseLine = interpolator(t);
+            stepBaseLine = interpolate(prevBaseLine, baseLine, t);
           } else if (isNullish(baseLine) || isNan(baseLine)) {
-            const interpolator = interpolateNumber(prevBaseLine as number, 0);
-            stepBaseLine = interpolator(t);
+            stepBaseLine = interpolate(prevBaseLine, 0, t);
           } else {
-            stepBaseLine = (baseLine as Coordinate[]).map((entry, index) => {
+            stepBaseLine = baseLine.map((entry, index) => {
               const prevPointIndex = Math.floor(index * prevPointsDiffFactor);
-              if ((prevBaseLine as Coordinate[])[prevPointIndex]) {
-                const prev = (prevBaseLine as Coordinate[])[prevPointIndex];
-                const interpolatorX = interpolateNumber(prev.x, entry.x);
-                const interpolatorY = interpolateNumber(prev.y, entry.y);
+              if (Array.isArray(prevBaseLine) && prevBaseLine[prevPointIndex]) {
+                const prev = prevBaseLine[prevPointIndex];
 
-                return { ...entry, x: interpolatorX(t), y: interpolatorY(t) };
+                return { ...entry, x: interpolate(prev.x, entry.x, t), y: interpolate(prev.y, entry.y, t) };
               }
 
               return entry;
@@ -578,7 +571,7 @@ function RenderArea({ needClip, clipPathId, props }: { needClip: boolean; clipPa
    * If this was a useState, then every step in the animation would trigger a re-render.
    * So, useRef it is.
    */
-  const previousPointsRef = useRef<ReadonlyArray<AreaPointItem> | null>();
+  const previousPointsRef = useRef<ReadonlyArray<AreaPointItem> | null>(null);
   const previousBaselineRef = useRef<InternalProps['baseLine'] | null>();
 
   const prevPoints = previousPointsRef.current;
@@ -737,6 +730,15 @@ function AreaImpl(props: Props) {
     // There is nothing stopping us from rendering Area in other charts, except for historical reasons. Do we want to allow that?
     return null;
   }
+
+  /*
+   * It is important to NOT have this condition here,
+   * because we need the Animate inside to receive an empty state
+   * so that it can properly reset its internal state and start a new animation.
+   */
+  // if (!points || !points.length) {
+  //   return null;
+  // }
 
   return (
     <AreaWithState
@@ -903,7 +905,7 @@ export function computeArea({
   };
 }
 
-export class Area extends PureComponent<Props, State> {
+export class Area extends PureComponent<Props> {
   static displayName = 'Area';
 
   static defaultProps = defaultAreaProps;

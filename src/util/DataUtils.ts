@@ -1,5 +1,4 @@
-// @ts-expect-error not installing types for lodash.get, I just want to see the bundle size difference
-import get from 'lodash.get';
+import get from 'es-toolkit/compat/get';
 
 export const mathSign = (value: number) => {
   if (value === 0) {
@@ -92,7 +91,14 @@ export const hasDuplicate = (ary: ReadonlyArray<unknown>): boolean => {
   return false;
 };
 
-/* @todo this function returns a function that is called immediately in all use-cases, make it just return the number and skip the anonymous function step */
+/**
+ * @deprecated instead use {@link interpolate}
+ *  this function returns a function that is called immediately in all use-cases.
+ *  Instead, use interpolate which returns a number and skips the anonymous function step.
+ *  @param numberA The first number
+ *  @param numberB The second number
+ *  @return A function that returns the interpolated number
+ */
 export const interpolateNumber = (numberA: number | undefined, numberB: number | undefined) => {
   if (isNumber(numberA) && isNumber(numberB)) {
     return (t: number) => numberA + t * (numberB - numberA);
@@ -101,13 +107,23 @@ export const interpolateNumber = (numberA: number | undefined, numberB: number |
   return () => numberB;
 };
 
+export function interpolate(start: unknown, end: number, t: number): number;
+export function interpolate(start: unknown, end: null, t: number): null;
+export function interpolate(start: unknown, end: number | null, t: number): number | null;
+export function interpolate(start: unknown, end: number | null, t: number): number | null {
+  if (isNumber(start) && isNumber(end)) {
+    return start + t * (end - start);
+  }
+  return end;
+}
+
 export function findEntryInArray<T>(
   ary: ReadonlyArray<T>,
   specifiedKey: number | string | ((entry: T) => unknown),
   specifiedValue: unknown,
-) {
+): T | undefined {
   if (!ary || !ary.length) {
-    return null;
+    return undefined;
   }
 
   return ary.find(
